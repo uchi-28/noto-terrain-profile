@@ -1,0 +1,9 @@
+{
+  "name": "dem-profile-e2e-check",
+  "private": true,
+  "type": "module",
+  "description": "docs/ の静的サイトをヘッドレスブラウザで実際にクリックして動作確認するための開発専用ツール。公開サイト(docs/)には含めない。",
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

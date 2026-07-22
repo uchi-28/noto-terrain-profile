@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+
+# Virtual environments
+.venv
+
+# Generated outputs (CSV/PNG produced by dem_profile.cli)
+/out/
+
+# Node (tools/e2e Playwright harness only; docs/vendor/*.js are committed on purpose)
+node_modules/
+
+# Original full-resolution DEMs (up to ~613MB/file) exceed GitHub's 100MB per-file
+# limit without Git LFS. Keep them local-only; docs/data/*.tif (2m, downsampled) is
+# what actually gets published. See task01_results.md.
+/dem/
