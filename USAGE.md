@@ -110,6 +110,34 @@ uv run python -m dem_profile.pick_transect_gui
   上書きされる)。
 - 保存ボタンを押さずにウィンドウを閉じた場合は、何もファイルに保存されない。
 
+### 別PCで側線ピッカーを使う
+
+デスクトップの「側線ピッカー」を別のPCでも使いたい場合、`.venv`やDEM本体(数百MB〜
+1GB超)を除いた、ソースコード・セットアップスクリプトだけの軽量なzipを配って
+セットアップできる。
+
+1. **配布用zipを作る**(元のPC側)。`src/`・`tests/`・`pyproject.toml`・`uv.lock`・
+   `.python-version`・各種`.md`・`install.ps1`だけを含む数百KB程度のzipを作る
+   (`dem/`の実データやWeb版の`docs/`は含めない)。
+2. **別PCにzipを展開する**。
+3. **展開したフォルダで `install.ps1` を実行する**。
+
+   ```
+   powershell -ExecutionPolicy Bypass -File install.ps1
+   ```
+
+   `uv`が無ければ自動インストールし、`uv sync`でPython環境を構築し、デスクトップに
+   「側線ピッカー」ショートカットを作成する(`.bat`経由だと組織管理PCのセキュリティ
+   ソフトにブロックされることがあったため、`uv.exe`を直接呼び出す構成にしている)。
+4. **DEM(GeoTIFF、EPSG:6675)ファイルを展開先の `dem\` フォルダに配置する**
+   (元のPCから別途コピーする必要がある。zipには含まれていない)。
+5. デスクトップの「側線ピッカー」を起動して動作確認する。
+
+PowerShellスクリプトの実行がポリシーでブロックされる場合は、`install.ps1`の中身を
+見ながら「`uv`をインストール→プロジェクトフォルダで`uv sync`→デスクトップに
+`uv.exe`を対象としたショートカット(引数: `run python -m dem_profile.pick_transect_gui`)
+を作成」を手動で行う。
+
 ## Web版(ブラウザ、`docs/`)
 
 ビルド不要のプレーンなHTML/CSS/ESモジュールJSで、GitHub Pagesにそのまま公開できる
