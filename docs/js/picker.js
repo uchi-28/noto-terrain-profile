@@ -82,6 +82,14 @@ export function createPicker(canvas, dem, hillshadeRgba, { onPick, onReset }) {
   redraw();
 
   return {
+    // 座標入力ボックスなど、クリック以外の経路で側線を確定するためのAPI。
+    // クリック2点分と同じ扱い(描画+onPick発火)にすることでUXを揃える。
+    setPoints(start, end) {
+      picked.length = 0;
+      picked.push(start, end);
+      redraw();
+      onPick({ start: picked[0], end: picked[1] });
+    },
     destroy() {
       canvas.removeEventListener("click", handleClick);
       window.removeEventListener("keydown", handleKeyDown);

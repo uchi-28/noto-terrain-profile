@@ -4,8 +4,12 @@
 だったが、画面を切り替えずに済むよう、陰影図の下に断面図の枠を常設した1つの
 ウィンドウに統合した。側線を2点クリックすると、ウィンドウを切り替えずにその場で
 下の断面図が更新される。3点目をクリックすると側線を選び直せ(Webアプリの
-`docs/js/picker.js`と同じUX)、Escキーでも選び直せる。「保存」ボタンで、その時点の
-断面図をCSV/PNGに書き出す(何度でも押し直せる。押すたびに同じ出力先を上書きする)。
+`docs/js/picker.js`と同じUX)、Escキーでも選び直せる。陰影図上部の始点X/Y・終点X/Yの
+`TextBox`に数値を直接入力して「座標で確定」ボタン(または最後の欄でEnter)を押しても
+同じように側線を確定でき、クリックと相互に同期する(クリックすれば入力欄にその座標が
+反映され、入力欄から確定すれば陰影図に赤線が引かれる)。座標が数値として読めない場合は
+`coord_status`にエラーメッセージを表示する。「保存」ボタンで、その時点の断面図をCSV/PNG
+に書き出す(何度でも押し直せる。押すたびに同じ出力先を上書きする)。
 
 `picker.py`/`profile_viewer.py`(旧2画面構成、廃止)と同じ方針で、ウィジェット配線
 (`_build_session`)と実際にウィンドウを表示してブロックする関数
@@ -18,7 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button
+from matplotlib.widgets import Button, TextBox
 
 from dem_profile.fonts import configure_japanese_font
 from dem_profile.hillshade import compute_hillshade
@@ -53,14 +57,14 @@ def _build_session(hillshade, extent, dem_paths, interval: float, out_csv, out_p
     fig, (ax_hillshade, ax_profile) = plt.subplots(
         2, 1, figsize=(9, 11), gridspec_kw={"height_ratios": [3, 2]}
     )
-    fig.subplots_adjust(right=0.78, bottom=0.08, hspace=0.3)
+    fig.subplots_adjust(right=0.78, bottom=0.08, top=0.85, hspace=0.3)
 
     ax_hillshade.imshow(hillshade, extent=extent, cmap="gray", vmin=0, vmax=1, origin="upper")
     ax_hillshade.set_xlabel("X (m)")
     ax_hillshade.set_ylabel("Y (m)")
     ax_hillshade.set_title(
         "側線の始点・終点をクリックしてください(2点目で断面図を表示、"
-        "3点目で選び直し、Escでクリア)"
+        "3点目で選び直し、Escでクリア)。上の欄に座標を直接入力してもOK"
     )
     ax_hillshade.set_aspect("equal")
     line, = ax_hillshade.plot([], [], "-o", color="red", linewidth=1.5, markersize=6)
@@ -69,6 +73,15 @@ def _build_session(hillshade, extent, dem_paths, interval: float, out_csv, out_p
 
     ax_button = fig.add_axes((0.82, 0.02, 0.13, 0.045))
     button = Button(ax_button, "保存")
+
+    # クリックの代わりに座標を直接入力して側線を確定するための入力欄(始点X/Y、終点X/Y)。
+    coord_status = fig.text(0.06, 0.975, "", fontsize=9, color="crimson")
+    box_x1 = TextBox(fig.add_axes((0.12, 0.925, 0.09, 0.035)), "始点X ")
+    box_y1 = TextBox(fig.add_axes((0.29, 0.925, 0.09, 0.035)), "Y ")
+    box_x2 = TextBox(fig.add_axes((0.46, 0.925, 0.09, 0.035)), "終点X ")
+    box_y2 = TextBox(fig.add_axes((0.63, 0.925, 0.09, 0.035)), "Y ")
+    ax_coord_button = fig.add_axes((0.80, 0.925, 0.15, 0.035))
+    coord_button = Button(ax_coord_button, "座標で確定")
 
     state = {"picked": [], "df": None, "saved_any": False}
 
@@ -85,8 +98,22 @@ def _build_session(hillshade, extent, dem_paths, interval: float, out_csv, out_p
         state["picked"] = []
         state["df"] = None
         line.set_data([], [])
+        for box in (box_x1, box_y1, box_x2, box_y2):
+            box.set_val("")
+        coord_status.set_text("")
         _reset_profile_axes(ax_profile)
         fig.canvas.draw_idle()
+
+    def commit_points(p0, p1) -> None:
+        """クリックまたは座標入力で確定した2点から側線・断面図を更新する。"""
+        state["picked"] = [p0, p1]
+        line.set_data([p0[0], p1[0]], [p0[1], p1[1]])
+        box_x1.set_val(f"{p0[0]:g}")
+        box_y1.set_val(f"{p0[1]:g}")
+        box_x2.set_val(f"{p1[0]:g}")
+        box_y2.set_val(f"{p1[1]:g}")
+        coord_status.set_text("")
+        update_profile()
 
     def on_click(event) -> None:
         if event.inaxes is not ax_hillshade or event.button != 1:
@@ -97,11 +124,21 @@ def _build_session(hillshade, extent, dem_paths, interval: float, out_csv, out_p
         line.set_data([p[0] for p in state["picked"]], [p[1] for p in state["picked"]])
         fig.canvas.draw_idle()
         if len(state["picked"]) == 2:
-            update_profile()
+            commit_points(*state["picked"])
 
     def on_key(event) -> None:
         if event.key == "escape":
             clear_selection()
+
+    def on_coord_submit(_arg=None) -> None:
+        try:
+            p0 = (float(box_x1.text), float(box_y1.text))
+            p1 = (float(box_x2.text), float(box_y2.text))
+        except ValueError:
+            coord_status.set_text("座標は数値で入力してください。")
+            fig.canvas.draw_idle()
+            return
+        commit_points(p0, p1)
 
     def on_save(_event) -> None:
         df = state["df"]
@@ -121,8 +158,11 @@ def _build_session(hillshade, extent, dem_paths, interval: float, out_csv, out_p
     fig.canvas.mpl_connect("button_press_event", on_click)
     fig.canvas.mpl_connect("key_press_event", on_key)
     button.on_clicked(on_save)
-    # Buttonはfigが直接参照を持たないとイベント配線がGCされて効かなくなることがあるため保持する。
+    coord_button.on_clicked(on_coord_submit)
+    box_y2.on_submit(on_coord_submit)  # 最後の入力欄でEnterを押しても確定できるように
+    # Button/TextBoxはfigが直接参照を持たないとイベント配線がGCされて効かなくなることがあるため保持する。
     fig._dem_profile_save_button = button
+    fig._dem_profile_coord_widgets = (box_x1, box_y1, box_x2, box_y2, coord_button)
 
     return fig, state
 

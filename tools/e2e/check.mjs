@@ -114,6 +114,21 @@ async function main() {
     assert(downloadDisabledAfterEscape === true, "Esc後はCSVダウンロードボタンが無効化されること");
     console.log("OK: Escキーで選択がクリアされた");
 
+    // 座標入力ボックスからの側線確定も確認する。
+    await page.fill("#coord-x1", "-500");
+    await page.fill("#coord-y1", "156200");
+    await page.fill("#coord-x2", "500");
+    await page.fill("#coord-y2", "156300");
+    await page.click("#coord-submit");
+    await page.waitForFunction(() => window.__state && window.__state.profile != null, {
+      timeout: 30000,
+    });
+    const coordProfile = await page.evaluate(() => window.__state.profile);
+    assert(coordProfile.demCount === 3, `座標入力後もdemCountが3であること (実際: ${coordProfile.demCount})`);
+    const picked = await page.evaluate(() => window.__state.picked);
+    assert(picked.start[0] === -500 && picked.end[0] === 500, "入力した座標が側線に反映されること");
+    console.log("OK: 座標入力ボックスから側線を確定できた", coordProfile);
+
     if (consoleErrors.length > 0) {
       throw new Error(`ブラウザコンソールにエラーがありました:\n${consoleErrors.join("\n")}`);
     }

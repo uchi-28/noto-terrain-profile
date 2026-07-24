@@ -77,6 +77,43 @@ section {
   padding: 0.25rem;
 }
 
+.coord-entry {
+  margin-top: 1rem;
+}
+
+.coord-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.coord-fields label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.coord-fields input {
+  width: 8rem;
+  padding: 0.3rem 0.4rem;
+  font-family: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.coord-fields button {
+  margin-top: 0;
+}
+
+.error {
+  color: #c0392b;
+  font-size: 0.9rem;
+}
+
 #dem-rows {
   display: flex;
   flex-direction: column;

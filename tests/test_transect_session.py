@@ -65,7 +65,7 @@ def session(tmp_path):
         hillshade, extent, [dem_path], interval=1.0, out_csv=out_csv, out_png=out_png
     )
     ax_hillshade = fig.axes[0]
-    button_ax = fig.axes[-1]
+    button_ax = fig._dem_profile_save_button.ax
     yield fig, state, ax_hillshade, button_ax, out_csv, out_png
     plt.close(fig)
 
@@ -144,3 +144,58 @@ def test_save_button_writes_csv_and_png(session):
     assert state["saved_any"] is True
     assert out_csv.exists()
     assert out_png.exists()
+
+
+def test_coord_boxes_submit_populate_profile(session):
+    fig, state, _ax_hillshade, _button_ax, _out_csv, _out_png = session
+    box_x1, box_y1, box_x2, box_y2, coord_button = fig._dem_profile_coord_widgets
+
+    box_x1.set_val("2")
+    box_y1.set_val("3")
+    box_x2.set_val("8")
+    box_y2.set_val("7")
+    _click_button_center(fig, coord_button.ax)
+
+    assert state["picked"] == [(2.0, 3.0), (8.0, 7.0)]
+    assert isinstance(state["df"], pd.DataFrame)
+    assert not state["df"].empty
+
+
+def test_coord_boxes_invalid_input_shows_error(session):
+    fig, state, _ax_hillshade, _button_ax, _out_csv, _out_png = session
+    box_x1, box_y1, box_x2, box_y2, coord_button = fig._dem_profile_coord_widgets
+
+    box_x1.set_val("not-a-number")
+    box_y1.set_val("3")
+    box_x2.set_val("8")
+    box_y2.set_val("7")
+    _click_button_center(fig, coord_button.ax)
+
+    assert state["picked"] == []
+    assert state["df"] is None
+
+
+def test_click_syncs_coord_boxes(session):
+    fig, state, ax_hillshade, _button_ax, _out_csv, _out_png = session
+    box_x1, box_y1, box_x2, box_y2, _coord_button = fig._dem_profile_coord_widgets
+
+    _click_at(fig, ax_hillshade, (2.0, 3.0))
+    _click_at(fig, ax_hillshade, (8.0, 7.0))
+
+    assert float(box_x1.text) == pytest.approx(2.0)
+    assert float(box_y1.text) == pytest.approx(3.0)
+    assert float(box_x2.text) == pytest.approx(8.0)
+    assert float(box_y2.text) == pytest.approx(7.0)
+
+
+def test_escape_clears_coord_boxes(session):
+    fig, state, ax_hillshade, _button_ax, _out_csv, _out_png = session
+    box_x1, box_y1, box_x2, box_y2, _coord_button = fig._dem_profile_coord_widgets
+
+    _click_at(fig, ax_hillshade, (2.0, 3.0))
+    _click_at(fig, ax_hillshade, (8.0, 7.0))
+    event = KeyEvent("key_press_event", fig.canvas, "escape")
+    fig.canvas.callbacks.process("key_press_event", event)
+
+    assert box_x1.text == ""
+    assert box_y2.text == ""

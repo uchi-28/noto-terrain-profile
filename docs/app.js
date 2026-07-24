@@ -24,6 +24,12 @@ const downloadButton = document.getElementById("download-csv");
 const demRowsEl = document.getElementById("dem-rows");
 const addRowButton = document.getElementById("add-dem-row");
 const loadButton = document.getElementById("load-dems");
+const coordX1 = document.getElementById("coord-x1");
+const coordY1 = document.getElementById("coord-y1");
+const coordX2 = document.getElementById("coord-x2");
+const coordY2 = document.getElementById("coord-y2");
+const coordSubmitButton = document.getElementById("coord-submit");
+const coordErrorEl = document.getElementById("coord-error");
 
 const demCache = new Map();
 let picker = null;
@@ -119,9 +125,23 @@ downloadButton.addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+function setCoordFields(start, end) {
+  coordX1.value = start[0];
+  coordY1.value = start[1];
+  coordX2.value = end[0];
+  coordY2.value = end[1];
+}
+
+function setCoordError(message) {
+  coordErrorEl.textContent = message;
+  coordErrorEl.hidden = !message;
+}
+
 async function onPick({ start, end }) {
   downloadButton.disabled = true;
   setStatus("断面図を計算中...");
+  setCoordError("");
+  setCoordFields(start, end);
   window.__state.picked = { start, end };
 
   const interval = Number(intervalInput.value) || 5;
@@ -144,6 +164,7 @@ async function onPick({ start, end }) {
 
 function onReset() {
   setStatus("選択をクリアしました。側線を選択してください(2点クリック)。");
+  setCoordError("");
   window.__state.picked = null;
   window.__state.profile = null;
   downloadButton.disabled = true;
@@ -189,6 +210,21 @@ loadButton.addEventListener("click", () => {
     console.error(err);
     setStatus(`エラーが発生しました: ${err.message}`);
   });
+});
+
+coordSubmitButton.addEventListener("click", () => {
+  if (!picker) {
+    setCoordError("先にDEMを読み込んでください。");
+    return;
+  }
+  const values = [coordX1.value, coordY1.value, coordX2.value, coordY2.value].map(Number);
+  if (values.some((v) => !Number.isFinite(v))) {
+    setCoordError("座標は4つとも数値で入力してください。");
+    return;
+  }
+  const [x1, y1, x2, y2] = values;
+  setCoordError("");
+  picker.setPoints([x1, y1], [x2, y2]);
 });
 
 DEFAULT_DEM_PATHS.forEach((path, i) => addDemRow(path, i === DEFAULT_HILLSHADE_INDEX));
